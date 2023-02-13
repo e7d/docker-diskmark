@@ -1,0 +1,55 @@
+# docker-diskmark
+
+A [fio](https://github.com/axboe/fio)-based disk benchmark [docker container](https://hub.docker.com/r/e7db/diskmark), similar to what [CrystalDiskMark](https://crystalmark.info/en/software/crystaldiskmark/) does.  
+Inspired by the [crystal-disk-mark-fio-bench.sh](https://gist.github.com/0x0I/35a3aa0f810acfddeddb7ff59c37f484) GitHub Gist by [0x0I](https://gist.github.com/0x0I).  
+
+## Basic Usage
+
+```
+docker run -it --rm e7db/diskmark
+```
+
+![Docker DiskMark](assets/diskmark.png?raw=true "Docker DiskMark")
+
+## Profiles
+
+The container is detecting if the benchmark is running on a NVMe, thus selecting the most appropriate tests profile, and by following what CrystalDiskMark recommends:
+- Default profile:
+  - Sequential 1M Q8T1
+  - Sequential 1M Q1T1
+  - Random 4K Q32T1
+  - Random 4K Q1T1
+- NVMe profile:
+  - Sequential 1M Q8T1
+  - Sequential 128K Q32T1
+  - Random 4K Q32T16
+  - Random 4K Q32T1
+
+An option to force the usage of the `Default` or `NVMe` profile could be added in the future.
+
+## Advanced usage
+
+Find below a table listing all the different parameters you can use with the container:
+| Parameter            | Type        | Default | Description |
+| :-                   | :-          |:-       | :- |
+| `SIZE`               | Environment | 1024    | The size of the test file in MB. |
+| `LOOPS`              | Environment | 5       | The number of test loops. |
+| `WRITEZERO`          | Environment | 0       | Write zeros instead of random data. |
+| `/disk`              | Volume      |         | The target path to benchmark. |
+
+By default, a 1024 MB test file is used, using 5 loops for each test, reading and writing random bytes on the disk where Docker is installed.
+
+### With parameters
+
+For example, you could go and use a 4 GB file looping each test twice, and writting only zeros instead of random data. You can achieve this using the following command:  
+```
+docker run -it --rm -e SIZE=4096 -e LOOPS=2 -e WRITEZERO=1 e7db/diskmark
+```
+### Specific disk
+
+By default, the benchmark runs on the disk where Docker is installed, using a [Docker volume](https://docs.docker.com/storage/volumes/) mounted on the `/disk` path inside the container.
+
+To run the benchmark on a different disk, use a path belonging to that disk, and mount it as the `/disk` volume.
+```
+docker run -it --rm -v /path/to/specific/disk:/disk e7db/diskmark
+```
