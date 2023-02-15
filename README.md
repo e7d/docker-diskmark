@@ -13,7 +13,7 @@ docker run -it --rm e7db/diskmark
 
 ## Profiles
 
-The container is detecting if the benchmark is running on a NVMe, thus selecting the most appropriate tests profile, and by following what CrystalDiskMark recommends:
+The container contains two different tests profiles, following what CrystalDiskMark recommends:
 - Default profile:
   - Sequential 1M Q8T1
   - Sequential 1M Q1T1
@@ -25,16 +25,15 @@ The container is detecting if the benchmark is running on a NVMe, thus selecting
   - Random 4K Q32T16
   - Random 4K Q32T1
 
-An option to force the usage of the `Default` or `NVMe` profile could be added in the future.
-
 ## Advanced usage
 
 Find below a table listing all the different parameters you can use with the container:
 | Parameter            | Type        | Default | Description |
 | :-                   | :-          |:-       | :- |
+| `PROFILE`            | Environment | auto    | The disk profile to apply: `auto` to try and autoselect the best one, `default` or `nvme`. |
+| `DATA`               | Environment | random  | The test data: `random` to use random data or `0x00` to use 0 (zero) values. |
 | `SIZE`               | Environment | 1024    | The size of the test file in MB. |
 | `LOOPS`              | Environment | 5       | The number of test loops. |
-| `WRITEZERO`          | Environment | 0       | Write zeros instead of random data. |
 | `/disk`              | Volume      |         | The target path to benchmark. |
 
 By default, a 1024 MB test file is used, using 5 loops for each test, reading and writing random bytes on the disk where Docker is installed.

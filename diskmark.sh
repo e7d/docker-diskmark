@@ -72,7 +72,7 @@ function loadDefaultProfile() {
   PARAMS[3]="--bs=4k --iodepth=1 --numjobs=1 --rw=rand"
   PARSE[3]="parseRandom"
   COLOR[3]=$(color $NORMAL $CYAN)
-  SIZE[3]=$SIZE
+  SIZE[3]=$(($SIZE / 32))
 }
 
 function loadNVMeProfile() {
@@ -107,13 +107,13 @@ function loadNVMeProfile() {
 
 TARGET="/disk"
 PARTITION=$(df $TARGET | grep /dev | cut -d/ -f3 | cut -d" " -f1)
+ISNVME=0
 if [ -z "$PARTITION" ]; then
   DRIVE=""
 elif [[ "$PARTITION" == nvme* ]]; then
-  loadNVMeProfile
   DRIVE=$(echo $PARTITION | rev | cut -c 3- | rev)
+  ISNVME=1
 else
-  loadDefaultProfile
   DRIVE=$(echo $PARTITION | rev | cut -c 2- | rev)
 fi
 if [ -z "$DRIVE" ]; then
@@ -125,12 +125,39 @@ else
   DRIVESIZE=$(($(cat /sys/block/$DRIVE/size)*512/1024/1024/1024))GB
 fi
 
+case "$PROFILE" in
+  default)
+    loadDefaultProfile
+    ;;
+  nvme)
+    loadNVMeProfile
+    ;;
+  *)
+    if [ $ISNVME -eq 1 ]; then
+      PROFILE="auto (nvme)"
+      loadNVMeProfile
+    else
+      PROFILE="auto (default)"
+      loadDefaultProfile
+    fi
+    ;;
+esac
+case "$DATA" in
+  zero | 0 | 0x00)
+    WRITEZERO=1
+    ;;
+  *)
+    WRITEZERO=0
+    ;;
+esac
+
 echo -e "$(color $BOLD $WHITE)Configuration:$(color $RESET)
 - Target: $TARGET
 - Drive: $DRIVEMODEL ($DRIVE, $DRIVESIZE)
+- Profile: $PROFILE
+- Data: $DATA
 - Size: ${SIZE} MB
 - Loops: $LOOPS
-- Write Only Zeroes: $WRITEZERO
 
 Benchmark is $(color $BOLD $WHITE)running$(color $RESET), please wait..."
 

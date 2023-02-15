@@ -6,11 +6,12 @@ RUN export DEBIAN_FRONTEND=noninteractive \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-COPY resources/diskmark.sh /usr/bin/diskmark
+COPY diskmark.sh /usr/bin/diskmark
 VOLUME /disk
 WORKDIR /disk
 
+ENV PROFILE "auto"
+ENV DATA "random"
 ENV SIZE 1024
 ENV LOOPS 5
-ENV WRITEZERO 0
 ENTRYPOINT [ "diskmark" ]
