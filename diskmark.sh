@@ -29,6 +29,45 @@ function finally() {
 
 trap 'finally $? "The benchmark was aborted before its completion."' INT
 
+function toBytes() {
+  local SIZE=$1
+  local UNIT=$(echo $SIZE | sed 's/[0-9]//g')
+  local NUMBER=$(echo $SIZE | sed 's/[a-zA-Z]//g')
+  case $UNIT in
+    G | g)
+      echo $((NUMBER*1024*1024*1024))
+      ;;
+    M | m)
+      echo $((NUMBER*1024*1024))
+      ;;
+    K | k)
+      echo $((NUMBER*1024))
+      ;;
+    *)
+      echo $NUMBER
+      ;;
+  esac
+}
+
+# convert bytes to human readable format
+function fromBytes() {
+  local SIZE=$1
+  local UNIT=""
+  if [ $SIZE -gt 1024 ]; then
+    SIZE=$((SIZE/1024))
+    UNIT="K"
+  fi
+  if [ $SIZE -gt 1024 ]; then
+    SIZE=$((SIZE/1024))
+    UNIT="M"
+  fi
+  if [ $SIZE -gt 1024 ]; then
+    SIZE=$((SIZE/1024))
+    UNIT="G"
+  fi
+  echo "${SIZE}${UNIT}"
+}
+
 function parseReadResult() {
   echo "$(($(cat $TARGET/.diskmark.json | grep -A15 '"name" : "'"$1"'"' | grep bw_bytes | cut -d: -f2 | sed s:,::g)/1024/1024)) MB/s, $(cat $TARGET/.diskmark.json | grep -A15 '"name" : "'"$1"'"' | grep -m1 iops | cut -d: -f2 | cut -d. -f1 | sed 's: ::g') IO/s"
 }
@@ -48,61 +87,77 @@ function parseRandomWriteResult() {
 function loadDefaultProfile() {
   NAME[0]="SEQ1MQ8T1"
   LABEL[0]="Sequential 1M Q8T1"
-  PARAMS[0]="--bs=1M --iodepth=8 --numjobs=1 --rw="
-  PARSE[0]="parse"
+  BLOCKSIZE[0]="1M"
+  IODEPTH[0]=8
+  NUMJOBS[0]=1
+  READWRITE[0]=""
   COLOR[0]=$(color $NORMAL $YELLOW)
-  SIZE[0]=$SIZE
+  TESTSIZE[0]=$BYTESIZE
 
   NAME[1]="SEQ1MQ1T1"
   LABEL[1]="Sequential 1M Q1T1"
-  PARAMS[1]="--bs=1M --iodepth=1 --numjobs=1 --rw="
-  PARSE[1]="parse"
+  BLOCKSIZE[1]="1M"
+  IODEPTH[1]=1
+  NUMJOBS[1]=1
+  READWRITE[1]=""
   COLOR[1]=$(color $NORMAL $YELLOW)
-  SIZE[1]=$SIZE
+  TESTSIZE[1]=$BYTESIZE
 
   NAME[2]="RND4KQ32T1"
   LABEL[2]="Random 4K Q32T1"
-  PARAMS[2]="--bs=4k --iodepth=32 --numjobs=1 --rw=rand"
-  PARSE[2]="parseRandom"
+  BLOCKSIZE[2]="4k"
+  IODEPTH[2]=32
+  NUMJOBS[2]=1
+  READWRITE[2]="rand"
   COLOR[2]=$(color $NORMAL $CYAN)
-  SIZE[2]=$(($SIZE / 32))
+  TESTSIZE[2]=$(($BYTESIZE/16))
 
   NAME[3]="RND4KQ1T1"
   LABEL[3]="Random 4K Q1T1"
-  PARAMS[3]="--bs=4k --iodepth=1 --numjobs=1 --rw=rand"
-  PARSE[3]="parseRandom"
+  BLOCKSIZE[3]="4k"
+  IODEPTH[3]=1
+  NUMJOBS[3]=1
+  READWRITE[3]="rand"
   COLOR[3]=$(color $NORMAL $CYAN)
-  SIZE[3]=$(($SIZE / 32))
+  TESTSIZE[3]=$(($BYTESIZE/32))
 }
 
 function loadNVMeProfile() {
   NAME[0]="SEQ1MQ8T1"
   LABEL[0]="Sequential 1M Q8T1"
-  PARAMS[0]="--bs=1M --iodepth=8 --numjobs=1 --rw="
-  PARSE[0]="parse"
+  BLOCKSIZE[0]="1M"
+  IODEPTH[0]=8
+  NUMJOBS[0]=1
+  READWRITE[0]=""
   COLOR[0]=$(color $NORMAL $YELLOW)
-  SIZE[0]=$SIZE
+  TESTSIZE[0]=$BYTESIZE
 
   NAME[1]="SEQ128KQ32T1"
   LABEL[1]="Sequential 128K Q32T1"
-  PARAMS[1]="--bs=128k --iodepth=32 --numjobs=1 --rw="
-  PARSE[1]="parse"
+  BLOCKSIZE[1]="128k"
+  IODEPTH[1]=32
+  NUMJOBS[1]=1
+  READWRITE[1]=""
   COLOR[1]=$(color $NORMAL $GREEN)
-  SIZE[1]=$SIZE
+  TESTSIZE[1]=$BYTESIZE
 
   NAME[2]="RND4KQ32T16"
   LABEL[2]="Random 4K Q32T16"
-  PARAMS[2]="--bs=4k --iodepth=32 --numjobs=16 --rw=rand"
-  PARSE[2]="parseRandom"
+  BLOCKSIZE[2]="4k"
+  IODEPTH[2]=32
+  NUMJOBS[2]=16
+  READWRITE[2]="rand"
   COLOR[2]=$(color $NORMAL $CYAN)
-  SIZE[2]=$(($SIZE / 32))
+  TESTSIZE[2]=$(($BYTESIZE/16))
 
-  NAME[3]="RND4KQ32T1"
-  LABEL[3]="Random 4K Q32T1"
-  PARAMS[3]="--bs=4k --iodepth=32 --numjobs=1 --rw=rand"
-  PARSE[3]="parseRandom"
+  NAME[3]="RND4KQ1T1"
+  LABEL[3]="Random 4K Q1T1"
+  BLOCKSIZE[3]="4k"
+  IODEPTH[3]=1
+  NUMJOBS[3]=1
+  READWRITE[3]="rand"
   COLOR[3]=$(color $NORMAL $CYAN)
-  SIZE[3]=$(($SIZE / 32))
+  TESTSIZE[3]=$(($BYTESIZE/32))
 }
 
 TARGET="/disk"
@@ -124,7 +179,7 @@ else
   DRIVEMODEL=$(cat /sys/block/$DRIVE/device/model | sed 's/ *$//g')
   DRIVESIZE=$(($(cat /sys/block/$DRIVE/size)*512/1024/1024/1024))GB
 fi
-
+BYTESIZE=$(toBytes $SIZE)
 case "$PROFILE" in
   default)
     loadDefaultProfile
@@ -156,28 +211,33 @@ echo -e "$(color $BOLD $WHITE)Configuration:$(color $RESET)
 - Drive: $DRIVEMODEL ($DRIVE, $DRIVESIZE)
 - Profile: $PROFILE
 - Data: $DATA
-- Size: ${SIZE} MB
+- Size: $SIZE
 - Loops: $LOOPS
 
 Benchmark is $(color $BOLD $WHITE)running$(color $RESET), please wait..."
 
-fio --loops=$LOOPS --size=${SIZE[$i]}M --filename=$TARGET/.diskmark.tmp --stonewall --ioengine=libaio --direct=1 --zero_buffers=$WRITEZERO --output-format=json \
-  --name=Bufread --loops=1 --bs=${SIZE[$i]}M --iodepth=1 --numjobs=1 --rw=readwrite\
+fio --loops=$LOOPS --size=$BYTESIZE --filename=$TARGET/.diskmark.tmp --stonewall --ioengine=libaio --direct=1 --zero_buffers=$WRITEZERO --output-format=json \
+  --name=Bufread --loops=1 --blocksize=$BYTESIZE --iodepth=1 --numjobs=1 --readwrite=readwrite\
   > /dev/null
 
 for (( i=0; i<${#NAME[@]}; i++ )); do
+  case "${READWRITE[$i]}" in
+    rand) PARSE="parseRandom" ;;
+    *) PARSE="parse" ;;
+  esac
+
   echo
   echo -e "${COLOR[$i]}${LABEL[$i]}:$(color $RESET)"
   printf "<= Read:  "
-  fio --loops=$LOOPS --size=${SIZE[$i]}M --filename=$TARGET/.diskmark.tmp --stonewall --ioengine=libaio --direct=1 --zero_buffers=$WRITEZERO --output-format=json \
-    --name=${NAME[$i]}Read ${PARAMS[$i]}read \
+  fio --loops=$LOOPS --size=${TESTSIZE[$i]} --filename=$TARGET/.diskmark.tmp --stonewall --ioengine=libaio --direct=1 --zero_buffers=$WRITEZERO --output-format=json \
+    --name=${NAME[$i]}Read --blocksize=${BLOCKSIZE[$i]} --iodepth=${IODEPTH[$i]} --numjobs=${NUMJOBS[$i]} --readwrite=${READWRITE[$i]}read \
     > $TARGET/.diskmark.json
-  echo "$(${PARSE[$i]}ReadResult "${NAME[$i]}Read")"
+  echo "$(${PARSE}ReadResult "${NAME[$i]}Read")"
   printf "=> Write: "
-  fio --loops=$LOOPS --size=${SIZE[$i]}M --filename=$TARGET/.diskmark.tmp --stonewall --ioengine=libaio --direct=1 --zero_buffers=$WRITEZERO --output-format=json \
-    --name=${NAME[$i]}Write ${PARAMS[$i]}write \
+  fio --loops=$LOOPS --size=${TESTSIZE[$i]} --filename=$TARGET/.diskmark.tmp --stonewall --ioengine=libaio --direct=1 --zero_buffers=$WRITEZERO --output-format=json \
+    --name=${NAME[$i]}Write --blocksize=${BLOCKSIZE[$i]} --iodepth=${IODEPTH[$i]} --numjobs=${NUMJOBS[$i]} --readwrite=${READWRITE[$i]}write \
     > $TARGET/.diskmark.json
-  echo "$(${PARSE[$i]}WriteResult "${NAME[$i]}Write")"
+  echo "$(${PARSE}WriteResult "${NAME[$i]}Write")"
 done
 
 echo

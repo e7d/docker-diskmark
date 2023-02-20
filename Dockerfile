@@ -12,6 +12,6 @@ WORKDIR /disk
 
 ENV PROFILE "auto"
 ENV DATA "random"
-ENV SIZE 1024
+ENV SIZE 1G
 ENV LOOPS 5
 ENTRYPOINT [ "diskmark" ]
