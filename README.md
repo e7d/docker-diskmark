@@ -30,8 +30,8 @@ The container contains two different test profiles:
 Find below a table listing all the different parameters you can use with the container:
 | Parameter            | Type        | Default | Description |
 | :-                   | :-          |:-       | :- |
-| `PROFILE`            | Environment | auto    | The disk profile to apply: `auto` to try and autoselect the best one, `default` or `nvme`. |
-| `DATA`               | Environment | random  | The test data: `random` to use random data or `0x00` to use 0 (zero) values. |
+| `PROFILE`            | Environment | auto    | The disk profile to apply:<br>- `auto` to try and autoselect the best one,<br>- `default`, best suited for "traditional" disks,<br>- `nvme`, best suited for NMVe SSD disks. |
+| `DATA`               | Environment | random  | The test data:<br>- `random` to use random data,<br>- `0x00` to fill with 0 (zero) values. |
 | `SIZE`               | Environment | 1G      | The size of the test file in bytes. |
 | `LOOPS`              | Environment | 5       | The number of test loops. |
 | `/disk`              | Volume      |         | The target path to benchmark. |
@@ -48,7 +48,7 @@ docker run -it --rm -e SIZE=4G -e LOOPS=2 -e DATA=0x00 e7db/diskmark
 
 ### Force profile
 
-A detection of your disk is made, so the benchmark uses the appropriate profile, `nvme` or `default`.  
+A detection of your disk is made, so the benchmark uses the appropriate profile, `default` or `default`.  
 In the event that the detection returns a wrong value, you can force the use of either of the profiles:  
 ```
 docker run -it --rm -e PROFILE=default e7db/diskmark

@@ -204,9 +204,11 @@ case "$PROFILE" in
 esac
 case "$DATA" in
   zero | 0 | 0x00)
+    DATA="zero (0x00)"
     WRITEZERO=1
     ;;
   *)
+    DATA="random"
     WRITEZERO=0
     ;;
 esac
