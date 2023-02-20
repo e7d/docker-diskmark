@@ -20,6 +20,7 @@ function color() {
 
 function finally() {
   local EXIT_CODE="${1:-0}"
+  echo
   echo -e "❌ Benchmark $(color $BOLD $RED)failed$(color $RESET)."
   if [ ! -z "$2" ]; then
     echo "> $2"
@@ -69,19 +70,19 @@ function fromBytes() {
 }
 
 function parseReadResult() {
-  echo "$(($(cat $TARGET/.diskmark.json | grep -A15 '"name" : "'"$1"'"' | grep bw_bytes | cut -d: -f2 | sed s:,::g)/1024/1024)) MB/s, $(cat $TARGET/.diskmark.json | grep -A15 '"name" : "'"$1"'"' | grep -m1 iops | cut -d: -f2 | cut -d. -f1 | sed 's: ::g') IO/s"
+  echo "$(($(cat "$TARGET/.diskmark.json" | grep -A15 '"name" : "'"$1"'"' | grep bw_bytes | cut -d: -f2 | sed s:,::g)/1024/1024)) MB/s, $(cat "$TARGET/.diskmark.json" | grep -A15 '"name" : "'"$1"'"' | grep -m1 iops | cut -d: -f2 | cut -d. -f1 | sed 's: ::g') IO/s"
 }
 
 function parseWriteResult() {
-  echo "$(($(cat $TARGET/.diskmark.json | grep -A80 '"name" : "'"$1"'"' | grep bw_bytes | sed '2!d' | cut -d: -f2 | sed s:,::g)/1024/1024)) MB/s, $(cat $TARGET/.diskmark.json | grep -A80 '"name" : "'"$1"'"' | grep iops | sed '7!d' | cut -d: -f2 | cut -d. -f1 | sed 's: ::g') IO/s"
+  echo "$(($(cat "$TARGET/.diskmark.json" | grep -A80 '"name" : "'"$1"'"' | grep bw_bytes | sed '2!d' | cut -d: -f2 | sed s:,::g)/1024/1024)) MB/s, $(cat "$TARGET/.diskmark.json" | grep -A80 '"name" : "'"$1"'"' | grep iops | sed '7!d' | cut -d: -f2 | cut -d. -f1 | sed 's: ::g') IO/s"
 }
 
 function parseRandomReadResult() {
-  echo "$(($(cat $TARGET/.diskmark.json | grep -A15 '"name" : "'"$1"'"' | grep bw_bytes | sed 's/        "bw_bytes" : //g' | sed 's:,::g' | awk '{ SUM += $1} END { printf "%.0f", SUM }')/1024/1024)) MB/s, $(cat $TARGET/.diskmark.json | grep -A15 '"name" : "'"$1"'"' | grep iops | sed 's/        "iops" : //g' | sed 's:,::g' | awk '{ SUM += $1} END { printf "%.0f", SUM }' | cut -d. -f1) IO/s"
+  echo "$(($(cat "$TARGET/.diskmark.json" | grep -A15 '"name" : "'"$1"'"' | grep bw_bytes | sed 's/        "bw_bytes" : //g' | sed 's:,::g' | awk '{ SUM += $1} END { printf "%.0f", SUM }')/1024/1024)) MB/s, $(cat "$TARGET/.diskmark.json" | grep -A15 '"name" : "'"$1"'"' | grep iops | sed 's/        "iops" : //g' | sed 's:,::g' | awk '{ SUM += $1} END { printf "%.0f", SUM }' | cut -d. -f1) IO/s"
 }
 
 function parseRandomWriteResult() {
-  echo "$(($(cat $TARGET/.diskmark.json | grep -A80 '"name" : "'"$1"'"' | grep bw_bytes | sed 's/        "bw_bytes" : //g' | sed 's:,::g' | awk '{ SUM += $1} END { printf "%.0f", SUM }')/1024/1024)) MB/s, $(cat $TARGET/.diskmark.json | grep -A80 '"name" : "'"$1"'"' | grep iops | sed 's/        "iops" : //g' | sed 's:,::g' | awk '{ SUM += $1} END { printf "%.0f", SUM }' | cut -d. -f1) IO/s"
+  echo "$(($(cat "$TARGET/.diskmark.json" | grep -A80 '"name" : "'"$1"'"' | grep bw_bytes | sed 's/        "bw_bytes" : //g' | sed 's:,::g' | awk '{ SUM += $1} END { printf "%.0f", SUM }')/1024/1024)) MB/s, $(cat "$TARGET/.diskmark.json" | grep -A80 '"name" : "'"$1"'"' | grep iops | sed 's/        "iops" : //g' | sed 's:,::g' | awk '{ SUM += $1} END { printf "%.0f", SUM }' | cut -d. -f1) IO/s"
 }
 
 function loadDefaultProfile() {
@@ -160,8 +161,12 @@ function loadNVMeProfile() {
   TESTSIZE[3]=$(($BYTESIZE/32))
 }
 
-TARGET="/disk"
-PARTITION=$(df $TARGET | grep /dev | cut -d/ -f3 | cut -d" " -f1)
+TARGET="${TARGET:-/disk}"
+if [ ! -d "$TARGET" ]; then
+  ISNEWDIR=1
+  mkdir -p "$TARGET"
+fi
+PARTITION=$(df "$TARGET" | grep /dev | cut -d/ -f3 | cut -d" " -f1)
 ISNVME=0
 if [ -z "$PARTITION" ]; then
   DRIVE=""
@@ -216,7 +221,7 @@ echo -e "$(color $BOLD $WHITE)Configuration:$(color $RESET)
 
 Benchmark is $(color $BOLD $WHITE)running$(color $RESET), please wait..."
 
-fio --loops=$LOOPS --size=$BYTESIZE --filename=$TARGET/.diskmark.tmp --stonewall --ioengine=libaio --direct=1 --zero_buffers=$WRITEZERO --output-format=json \
+fio --loops=$LOOPS --size=$BYTESIZE --filename="$TARGET/.diskmark.tmp" --stonewall --ioengine=libaio --direct=1 --zero_buffers=$WRITEZERO --output-format=json \
   --name=Bufread --loops=1 --blocksize=$BYTESIZE --iodepth=1 --numjobs=1 --readwrite=readwrite\
   > /dev/null
 
@@ -229,18 +234,22 @@ for (( i=0; i<${#NAME[@]}; i++ )); do
   echo
   echo -e "${COLOR[$i]}${LABEL[$i]}:$(color $RESET)"
   printf "<= Read:  "
-  fio --loops=$LOOPS --size=${TESTSIZE[$i]} --filename=$TARGET/.diskmark.tmp --stonewall --ioengine=libaio --direct=1 --zero_buffers=$WRITEZERO --output-format=json \
+  fio --loops=$LOOPS --size=${TESTSIZE[$i]} --filename="$TARGET/.diskmark.tmp" --stonewall --ioengine=libaio --direct=1 --zero_buffers=$WRITEZERO --output-format=json \
     --name=${NAME[$i]}Read --blocksize=${BLOCKSIZE[$i]} --iodepth=${IODEPTH[$i]} --numjobs=${NUMJOBS[$i]} --readwrite=${READWRITE[$i]}read \
-    > $TARGET/.diskmark.json
+    > "$TARGET/.diskmark.json"
   echo "$(${PARSE}ReadResult "${NAME[$i]}Read")"
   printf "=> Write: "
-  fio --loops=$LOOPS --size=${TESTSIZE[$i]} --filename=$TARGET/.diskmark.tmp --stonewall --ioengine=libaio --direct=1 --zero_buffers=$WRITEZERO --output-format=json \
+  fio --loops=$LOOPS --size=${TESTSIZE[$i]} --filename="$TARGET/.diskmark.tmp" --stonewall --ioengine=libaio --direct=1 --zero_buffers=$WRITEZERO --output-format=json \
     --name=${NAME[$i]}Write --blocksize=${BLOCKSIZE[$i]} --iodepth=${IODEPTH[$i]} --numjobs=${NUMJOBS[$i]} --readwrite=${READWRITE[$i]}write \
-    > $TARGET/.diskmark.json
+    > "$TARGET/.diskmark.json"
   echo "$(${PARSE}WriteResult "${NAME[$i]}Write")"
 done
 
 echo
 echo -e "✅ Benchmark $(color $BOLD $GREEN)finished$(color $RESET)."
 
-rm $TARGET/.diskmark.json $TARGET/.diskmark.tmp
+if [ ! -z $ISNEWDIR ]; then
+  rm -rf "$TARGET"
+else
+  rm "$TARGET/.diskmark.json" "$TARGET/.diskmark.tmp"
+fi
