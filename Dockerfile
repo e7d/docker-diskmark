@@ -10,8 +10,9 @@ COPY diskmark.sh /usr/bin/diskmark
 VOLUME /disk
 WORKDIR /disk
 
+ENV TARGET "/disk"
 ENV PROFILE "auto"
 ENV DATA "random"
-ENV SIZE 1G
 ENV LOOPS 5
+ENV SIZE 1G
 ENTRYPOINT [ "diskmark" ]

@@ -32,8 +32,8 @@ Find below a table listing all the different parameters you can use with the con
 | :-                   | :-          |:-       | :- |
 | `PROFILE`            | Environment | auto    | The disk profile to apply:<br>- `auto` to try and autoselect the best one,<br>- `default`, best suited for "traditional" disks,<br>- `nvme`, best suited for NMVe SSD disks. |
 | `DATA`               | Environment | random  | The test data:<br>- `random` to use random data,<br>- `0x00` to fill with 0 (zero) values. |
-| `SIZE`               | Environment | 1G      | The size of the test file in bytes. |
 | `LOOPS`              | Environment | 5       | The number of test loops. |
+| `SIZE`               | Environment | 1G      | The size of the test file in bytes. |
 | `/disk`              | Volume      |         | The target path to benchmark. |
 
 By default, a 1 GB test file is used, using 5 loops for each test, reading and writing random bytes on the disk where Docker is installed.

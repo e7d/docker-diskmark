@@ -93,7 +93,6 @@ function loadDefaultProfile() {
   NUMJOBS[0]=1
   READWRITE[0]=""
   COLOR[0]=$(color $NORMAL $YELLOW)
-  TESTSIZE[0]=$BYTESIZE
 
   NAME[1]="SEQ1MQ1T1"
   LABEL[1]="Sequential 1M Q1T1"
@@ -102,7 +101,6 @@ function loadDefaultProfile() {
   NUMJOBS[1]=1
   READWRITE[1]=""
   COLOR[1]=$(color $NORMAL $YELLOW)
-  TESTSIZE[1]=$BYTESIZE
 
   NAME[2]="RND4KQ32T1"
   LABEL[2]="Random 4K Q32T1"
@@ -111,7 +109,7 @@ function loadDefaultProfile() {
   NUMJOBS[2]=1
   READWRITE[2]="rand"
   COLOR[2]=$(color $NORMAL $CYAN)
-  TESTSIZE[2]=$(($BYTESIZE/16))
+  SIZEDIVIDER[2]=16
 
   NAME[3]="RND4KQ1T1"
   LABEL[3]="Random 4K Q1T1"
@@ -120,7 +118,7 @@ function loadDefaultProfile() {
   NUMJOBS[3]=1
   READWRITE[3]="rand"
   COLOR[3]=$(color $NORMAL $CYAN)
-  TESTSIZE[3]=$(($BYTESIZE/32))
+  SIZEDIVIDER[3]=32
 }
 
 function loadNVMeProfile() {
@@ -131,7 +129,6 @@ function loadNVMeProfile() {
   NUMJOBS[0]=1
   READWRITE[0]=""
   COLOR[0]=$(color $NORMAL $YELLOW)
-  TESTSIZE[0]=$BYTESIZE
 
   NAME[1]="SEQ128KQ32T1"
   LABEL[1]="Sequential 128K Q32T1"
@@ -140,7 +137,6 @@ function loadNVMeProfile() {
   NUMJOBS[1]=1
   READWRITE[1]=""
   COLOR[1]=$(color $NORMAL $GREEN)
-  TESTSIZE[1]=$BYTESIZE
 
   NAME[2]="RND4KQ32T16"
   LABEL[2]="Random 4K Q32T16"
@@ -149,7 +145,7 @@ function loadNVMeProfile() {
   NUMJOBS[2]=16
   READWRITE[2]="rand"
   COLOR[2]=$(color $NORMAL $CYAN)
-  TESTSIZE[2]=$(($BYTESIZE/16))
+  SIZEDIVIDER[2]=16
 
   NAME[3]="RND4KQ1T1"
   LABEL[3]="Random 4K Q1T1"
@@ -158,10 +154,10 @@ function loadNVMeProfile() {
   NUMJOBS[3]=1
   READWRITE[3]="rand"
   COLOR[3]=$(color $NORMAL $CYAN)
-  TESTSIZE[3]=$(($BYTESIZE/32))
+  SIZEDIVIDER[3]=32
 }
 
-TARGET="${TARGET:-/disk}"
+TARGET="${TARGET:-$(pwd)}"
 if [ ! -d "$TARGET" ]; then
   ISNEWDIR=1
   mkdir -p "$TARGET"
@@ -184,7 +180,6 @@ else
   DRIVEMODEL=$(cat /sys/block/$DRIVE/device/model | sed 's/ *$//g')
   DRIVESIZE=$(($(cat /sys/block/$DRIVE/size)*512/1024/1024/1024))GB
 fi
-BYTESIZE=$(toBytes $SIZE)
 case "$PROFILE" in
   default)
     loadDefaultProfile
@@ -212,14 +207,17 @@ case "$DATA" in
     WRITEZERO=0
     ;;
 esac
+LOOPS="${LOOPS:-5}"
+SIZE="${SIZE:-1G}"
+BYTESIZE=$(toBytes $SIZE)
 
 echo -e "$(color $BOLD $WHITE)Configuration:$(color $RESET)
 - Target: $TARGET
 - Drive: $DRIVEMODEL ($DRIVE, $DRIVESIZE)
 - Profile: $PROFILE
 - Data: $DATA
-- Size: $SIZE
 - Loops: $LOOPS
+- Size: $SIZE
 
 Benchmark is $(color $BOLD $WHITE)running$(color $RESET), please wait..."
 
@@ -228,6 +226,7 @@ fio --loops=$LOOPS --size=$BYTESIZE --filename="$TARGET/.diskmark.tmp" --stonewa
   > /dev/null
 
 for (( i=0; i<${#NAME[@]}; i++ )); do
+  TESTSIZE=$((${BYTESIZE}/${SIZEDIVIDER[$i]:-1}))
   case "${READWRITE[$i]}" in
     rand) PARSE="parseRandom" ;;
     *) PARSE="parse" ;;
@@ -236,12 +235,12 @@ for (( i=0; i<${#NAME[@]}; i++ )); do
   echo
   echo -e "${COLOR[$i]}${LABEL[$i]}:$(color $RESET)"
   printf "<= Read:  "
-  fio --loops=$LOOPS --size=${TESTSIZE[$i]} --filename="$TARGET/.diskmark.tmp" --stonewall --ioengine=libaio --direct=1 --zero_buffers=$WRITEZERO --output-format=json \
+  fio --loops=$LOOPS --size=${TESTSIZE} --filename="$TARGET/.diskmark.tmp" --stonewall --ioengine=libaio --direct=1 --zero_buffers=$WRITEZERO --output-format=json \
     --name=${NAME[$i]}Read --blocksize=${BLOCKSIZE[$i]} --iodepth=${IODEPTH[$i]} --numjobs=${NUMJOBS[$i]} --readwrite=${READWRITE[$i]}read \
     > "$TARGET/.diskmark.json"
   echo "$(${PARSE}ReadResult "${NAME[$i]}Read")"
   printf "=> Write: "
-  fio --loops=$LOOPS --size=${TESTSIZE[$i]} --filename="$TARGET/.diskmark.tmp" --stonewall --ioengine=libaio --direct=1 --zero_buffers=$WRITEZERO --output-format=json \
+  fio --loops=$LOOPS --size=${TESTSIZE} --filename="$TARGET/.diskmark.tmp" --stonewall --ioengine=libaio --direct=1 --zero_buffers=$WRITEZERO --output-format=json \
     --name=${NAME[$i]}Write --blocksize=${BLOCKSIZE[$i]} --iodepth=${IODEPTH[$i]} --numjobs=${NUMJOBS[$i]} --readwrite=${READWRITE[$i]}write \
     > "$TARGET/.diskmark.json"
   echo "$(${PARSE}WriteResult "${NAME[$i]}Write")"
