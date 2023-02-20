@@ -9,7 +9,7 @@ Inspired by the [crystal-disk-mark-fio-bench.sh](https://gist.github.com/0x0I/35
 docker run -it --rm e7db/diskmark
 ```
 
-![Docker DiskMark](assets/diskmark.png?raw=true "Docker DiskMark")
+![Docker DiskMark](https://github.com/e7d/docker-diskmark/raw/main/assets/diskmark.png?raw=true "Docker DiskMark")
 
 ## Profiles
 
