@@ -48,10 +48,10 @@ docker run -it --rm -e SIZE=4G -e LOOPS=2 -e DATA=0x00 e7db/diskmark
 
 ### Force profile
 
-A detection of your disk is made, so the benchmark uses the appropriate profile, `default` or `default`.  
+A detection of your disk is made, so the benchmark uses the appropriate profile, `default` or `nvme`.  
 In the event that the detection returns a wrong value, you can force the use of either of the profiles:  
 ```
-docker run -it --rm -e PROFILE=default e7db/diskmark
+docker run -it --rm -e PROFILE=nvme e7db/diskmark
 ```
 
 ### Specific disk
