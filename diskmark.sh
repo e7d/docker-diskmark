@@ -132,21 +132,28 @@ if [ ! -d "$TARGET" ]; then
 fi
 PARTITION=$(df "$TARGET" | grep /dev | cut -d/ -f3 | cut -d" " -f1)
 ISNVME=0
-if [ -z "$PARTITION" ]; then
-  DRIVE=""
-elif [[ "$PARTITION" == nvme* ]]; then
+ISMDADM=0
+if [[ "$PARTITION" == nvme* ]]; then
   DRIVE=$(echo $PARTITION | rev | cut -c 3- | rev)
   ISNVME=1
-else
+elif [[ "$PARTITION" == sda* ]]; then
   DRIVE=$(echo $PARTITION | rev | cut -c 2- | rev)
+elif [[ "$PARTITION" == md* ]]; then
+  DRIVE=$PARTITION
+  ISMDADM=1
+else
+  DRIVE=""
 fi
-if [ -z "$DRIVE" ]; then
+if [ $ISMDADM -eq 1 ]; then
+  DRIVEMODEL="mdadm $(cat /sys/block/md0/md/level)"
+  DRIVESIZE=$(($(cat /sys/block/$DRIVE/size) * 512 / 1024 / 1024 / 1024))GB
+elif [ -f /sys/block/$DRIVE/device/model ]; then
+  DRIVEMODEL=$(cat /sys/block/$DRIVE/device/model | sed 's/ *$//g')
+  DRIVESIZE=$(($(cat /sys/block/$DRIVE/size) * 512 / 1024 / 1024 / 1024))GB
+else
   DRIVE="unknown"
   DRIVEMODEL="unknown"
   DRIVESIZE="unknown"
-else
-  DRIVEMODEL=$(cat /sys/block/$DRIVE/device/model | sed 's/ *$//g')
-  DRIVESIZE=$(($(cat /sys/block/$DRIVE/size) * 512 / 1024 / 1024 / 1024))GB
 fi
 case "$PROFILE" in
   default)
