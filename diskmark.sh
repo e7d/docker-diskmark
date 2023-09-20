@@ -130,6 +130,7 @@ if [ ! -d "$TARGET" ]; then
   ISNEWDIR=1
   mkdir -p "$TARGET"
 fi
+DRIVELABEL="Drive"
 PARTITION=$(df "$TARGET" | grep /dev | cut -d/ -f3 | cut -d" " -f1)
 ISNVME=0
 ISMDADM=0
@@ -145,8 +146,11 @@ else
   DRIVE=""
 fi
 if [ $ISMDADM -eq 1 ]; then
+  DRIVELABEL="Drives"
   DRIVEMODEL="mdadm $(cat /sys/block/md0/md/level)"
   DRIVESIZE=$(($(cat /sys/block/$DRIVE/size) * 512 / 1024 / 1024 / 1024))GB
+  DISKS=$(ls /sys/block/md0/slaves/)
+  DRIVEDETAILS="using $(echo $DISKS | wc -w) disks ($(echo $DISKS | sed 's/ /, /g'))"
 elif [ -f /sys/block/$DRIVE/device/model ]; then
   DRIVEMODEL=$(cat /sys/block/$DRIVE/device/model | sed 's/ *$//g')
   DRIVESIZE=$(($(cat /sys/block/$DRIVE/size) * 512 / 1024 / 1024 / 1024))GB
@@ -188,7 +192,7 @@ BYTESIZE=$(toBytes $SIZE)
 
 echo -e "$(color $BOLD $WHITE)Configuration:$(color $RESET)
 - Target: $TARGET
-- Drive: $DRIVEMODEL ($DRIVE, $DRIVESIZE)
+- $DRIVELABEL: $DRIVEMODEL ($DRIVE, $DRIVESIZE) $DRIVEDETAILS
 - Profile: $PROFILE
 - Data: $DATA
 - Loops: $LOOPS
