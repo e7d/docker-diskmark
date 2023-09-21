@@ -32,9 +32,10 @@ Find below a table listing all the different parameters you can use with the con
 | :-                   | :-          |:-       | :- |
 | `PROFILE`            | Environment | auto    | The profile to apply:<br>- `auto` to try and autoselect the best one based on the used drive detection,<br>- `default`, best suited for hard disk drives,<br>- `nvme`, best suited for NMVe SSD drives. |
 | `JOB`                | Environment |         | A custom job to use: details below in the [Custom job](#custom-job) section.<br>This parameter overrides the `PROFILE` parameter. |
+| `IO`                 | Environment | direct  | The drive access mode:<br>- `direct` for synchronous I/O,<br>- `buffered` for asynchronous I/O. |
 | `DATA`               | Environment | random  | The test data:<br>- `random` to use random data,<br>- `0x00` to fill with 0 (zero) values. |
-| `LOOPS`              | Environment | 5       | The number of test loops. |
 | `SIZE`               | Environment | 1G      | The size of the test file in bytes. |
+| `LOOPS`              | Environment | 5       | The number of test loops. |
 | `/disk`              | Volume      |         | The target path to benchmark. |
 
 By default, a 1 GB test file is used, using 5 loops for each test, reading and writing random bytes on the disk where Docker is installed.

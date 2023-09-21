@@ -226,6 +226,16 @@ else
       ;;
   esac
 fi
+case "$IO" in
+  buffered)
+    IO="buffered (asynchronous)"
+    DIRECT=0
+    ;;
+  *)
+    IO="direct (synchronous)"
+    DIRECT=1
+    ;;
+esac
 case "$DATA" in
   zero | 0 | 0x00)
     DATA="zero (0x00)"
@@ -236,24 +246,28 @@ case "$DATA" in
     WRITEZERO=0
     ;;
 esac
-LOOPS="${LOOPS:-5}"
 SIZE="${SIZE:-1G}"
 BYTESIZE=$(toBytes $SIZE)
+LOOPS="${LOOPS:-5}"
 
 echo -e "$(color $BOLD $WHITE)Configuration:$(color $RESET)
 - Target: $TARGET
-- $DRIVELABEL: $DRIVEMODEL ($DRIVE, $DRIVESIZE) $DRIVEDETAILS
-- Partition: $PARTITIONTYPE ($PARTITION, $PARTITIONSIZE)
+  - $DRIVELABEL: $DRIVEMODEL ($DRIVE, $DRIVESIZE) $DRIVEDETAILS
+  - Partition: $PARTITIONTYPE ($PARTITION, $PARTITIONSIZE)
 - Profile: $PROFILE
-- Data: $DATA
-- Loops: $LOOPS
-- Size: $SIZE
+  - I/O: $IO
+  - Data: $DATA
+  - Size: $SIZE
+  - Loops: $LOOPS
 
 The benchmark is $(color $BOLD $WHITE)running$(color $RESET), please wait..."
 
 fio_benchmark() {
-  fio --loops="$LOOPS" --size="$1" --filename="$TARGET/.diskmark.tmp" --stonewall --ioengine=libaio --direct=1 --zero_buffers="$WRITEZERO" --output-format=json \
-    --name="$2" --blocksize="$3" --iodepth="$4" --numjobs="$5" --readwrite="$6" >"$TARGET/.diskmark.json"
+  fio --filename="$TARGET/.diskmark.tmp" \
+    --stonewall --ioengine=libaio --direct=$DIRECT --zero_buffers=$WRITEZERO \
+    --loops="$LOOPS" --size="$1" \
+    --name="$2" --blocksize="$3" --iodepth="$4" --numjobs="$5" --readwrite="$6" \
+    --output-format=json >"$TARGET/.diskmark.json"
 }
 
 fio_benchmark "$BYTESIZE" Bufread "$BYTESIZE" 1 1 readwrite >/dev/null
