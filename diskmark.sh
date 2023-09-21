@@ -87,6 +87,14 @@ function fromBytes() {
     SIZE=$((SIZE / 1024))
     UNIT="G"
   fi
+  if (( SIZE > 1024 )); then
+    SIZE=$((SIZE / 1024))
+    UNIT="T"
+  fi
+  if (( SIZE > 1024 )); then
+    SIZE=$((SIZE / 1024))
+    UNIT="P"
+  fi
   echo "${SIZE}${UNIT}"
 }
 
@@ -167,12 +175,14 @@ if [ ! -d "$TARGET" ]; then
 fi
 DRIVELABEL="Drive"
 PARTITION=$(df "$TARGET" | grep /dev | cut -d/ -f3 | cut -d" " -f1)
+PARTITIONTYPE=$(df -T "$TARGET" | grep /dev | awk '{print $2}')
+PARTITIONSIZE=$(df -h "$TARGET" | grep /dev | awk '{print $2}')
 ISNVME=0
 ISMDADM=0
 if [[ "$PARTITION" == nvme* ]]; then
   DRIVE=$(echo $PARTITION | rev | cut -c 3- | rev)
   ISNVME=1
-elif [[ "$PARTITION" == sd* ]]; then
+elif [[ "$PARTITION" == hd* ]] || [[ "$PARTITION" == sd* ]] || [[ "$PARTITION" == vd* ]]; then
   DRIVE=$(echo $PARTITION | rev | cut -c 2- | rev)
 elif [[ "$PARTITION" == md* ]]; then
   DRIVE=$PARTITION
@@ -182,13 +192,13 @@ else
 fi
 if [ $ISMDADM -eq 1 ]; then
   DRIVELABEL="Drives"
-  DRIVEMODEL="mdadm $(cat /sys/block/md0/md/level)"
-  DRIVESIZE=$(($(cat /sys/block/$DRIVE/size) * 512 / 1024 / 1024 / 1024))GB
-  DISKS=$(ls /sys/block/md0/slaves/)
+  DRIVEMODEL="mdadm $(cat /sys/block/$DRIVE/md/level)"
+  DRIVESIZE=$(fromBytes $(($(cat /sys/block/$DRIVE/size) * 512)))
+  DISKS=$(ls /sys/block/$DRIVE/slaves/)
   DRIVEDETAILS="using $(echo $DISKS | wc -w) disks ($(echo $DISKS | sed 's/ /, /g'))"
 elif [ -f /sys/block/$DRIVE/device/model ]; then
   DRIVEMODEL=$(cat /sys/block/$DRIVE/device/model | sed 's/ *$//g')
-  DRIVESIZE=$(($(cat /sys/block/$DRIVE/size) * 512 / 1024 / 1024 / 1024))GB
+  DRIVESIZE=$(fromBytes $(($(cat /sys/block/$DRIVE/size) * 512)))
 else
   DRIVE="unknown"
   DRIVEMODEL="unknown"
@@ -233,6 +243,7 @@ BYTESIZE=$(toBytes $SIZE)
 echo -e "$(color $BOLD $WHITE)Configuration:$(color $RESET)
 - Target: $TARGET
 - $DRIVELABEL: $DRIVEMODEL ($DRIVE, $DRIVESIZE) $DRIVEDETAILS
+- Partition: $PARTITIONTYPE ($PARTITION, $PARTITIONSIZE)
 - Profile: $PROFILE
 - Data: $DATA
 - Loops: $LOOPS
