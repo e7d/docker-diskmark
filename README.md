@@ -30,7 +30,8 @@ The container contains two different test profiles:
 Find below a table listing all the different parameters you can use with the container:
 | Parameter            | Type        | Default | Description |
 | :-                   | :-          |:-       | :- |
-| `PROFILE`            | Environment | auto    | The disk profile to apply:<br>- `auto` to try and autoselect the best one,<br>- `default`, best suited for "traditional" disks,<br>- `nvme`, best suited for NMVe SSD disks. |
+| `PROFILE`            | Environment | auto    | The profile to apply:<br>- `auto` to try and autoselect the best one based on the used drive detection,<br>- `default`, best suited for hard disk drives,<br>- `nvme`, best suited for NMVe SSD drives. |
+| `JOB`                | Environment |         | A custom job to use: details below in the [Custom job](#custom-job) section.<br>This parameter overrides the `PROFILE` parameter. |
 | `DATA`               | Environment | random  | The test data:<br>- `random` to use random data,<br>- `0x00` to fill with 0 (zero) values. |
 | `LOOPS`              | Environment | 5       | The number of test loops. |
 | `SIZE`               | Environment | 1G      | The size of the test file in bytes. |
@@ -52,6 +53,23 @@ A detection of your disk is made, so the benchmark uses the appropriate profile,
 In the event that the detection returns a wrong value, you can force the use of either of the profiles:  
 ```
 docker run -it --rm -e PROFILE=nvme e7db/diskmark
+```
+
+### Custom job
+
+You can run a custom single job using the `JOB` parameter.   
+The job expression must follow a specific format, such as follows: `RND4KQ32T16`.  
+It is composed of 4 parts:  
+- `RND` or `SEQ`, for random or sequential access
+- `xxK` or `xxM`, where `xx` is the block size, and `K` or `M` is the unit (Kilobytes or Megabytes)
+- `Qyy`, where `yy` is the queue depth
+- `Tzz`, where `zz` is the number of threads
+
+In the previous example `RND4KQ32T16`, the job uses random accesses, with a block size of 4K, a queue depth of 32, and 16 threads.
+
+Construct you custom chain, then run the benchmark using the following command:  
+```
+docker run -it --rm -e JOB=RND4KQ32T16 e7db/diskmark
 ```
 
 ### Specific disk

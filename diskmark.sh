@@ -29,25 +29,35 @@ function clean() {
 
 function interrupt() {
   local EXIT_CODE="${1:-0}"
-  echo -e "\r\n\n🛑 Benchmark $(color $BOLD $RED)interrupted$(color $RESET)."
+  echo -e "\r\n\n🛑 The benchmark was $(color $BOLD $RED)interrupted$(color $RESET)."
   if [ ! -z "$2" ]; then
-    echo "➤ $2"
+    echo -e "➤ $2"
   fi
   clean
   exit "${EXIT_CODE}"
 }
 trap 'interrupt $? "The benchmark was aborted before its completion."' HUP INT QUIT KILL TERM
 
-function error() {
-  local EXIT_CODE="${1:-0}"
-  echo -e "\r\n\n❌ Benchmark $(color $BOLD $RED)failed$(color $RESET)."
+function fail() {
+  local EXIT_CODE="${1:-1}"
+  echo -e "\r\n\n❌ The benchmark had $(color $BOLD $RED)failed$(color $RESET)."
   if [ ! -z "$2" ]; then
-    echo "➤ $2"
+    echo -e "➤ $2"
   fi
   clean
   exit "${EXIT_CODE}"
 }
-trap 'error $? "The benchmark failed before its completion."' ERR
+trap 'fail $? "The benchmark failed before its completion."' ERR
+
+function error() {
+  local EXIT_CODE="${1:-1}"
+  echo -e "\r\n❌ The benchmark encountered an $(color $BOLD $RED)error$(color $RESET)."
+  if [ ! -z "$2" ]; then
+    echo -e "➤ $2"
+  fi
+  clean
+  exit "${EXIT_CODE}"
+}
 
 function toBytes() {
   local SIZE=$1
@@ -106,23 +116,48 @@ function parseRandomWriteResult() {
 function loadDefaultProfile() {
   NAME=("SEQ1MQ8T1" "SEQ1MQ1T1" "RND4KQ32T1" "RND4KQ1T1")
   LABEL=("Sequential 1M Q8T1" "Sequential 1M Q1T1" "Random 4K Q32T1" "Random 4K Q1T1")
-  BLOCKSIZE=("1M" "1M" "4k" "4k")
+  COLOR=($(color $NORMAL $YELLOW) $(color $NORMAL $YELLOW) $(color $NORMAL $CYAN) $(color $NORMAL $CYAN))
+  BLOCKSIZE=("1M" "1M" "4K" "4K")
   IODEPTH=(8 1 32 1)
   NUMJOBS=(1 1 1 1)
   READWRITE=("" "" "rand" "rand")
-  COLOR=($(color $NORMAL $YELLOW) $(color $NORMAL $YELLOW) $(color $NORMAL $CYAN) $(color $NORMAL $CYAN))
   SIZEDIVIDER=(-1 -1 16 32)
 }
 
 function loadNVMeProfile() {
   NAME=("SEQ1MQ8T1" "SEQ128KQ32T1" "RND4KQ32T16" "RND4KQ1T1")
   LABEL=("Sequential 1M Q8T1" "Sequential 128K Q32T1" "Random 4K Q32T16" "Random 4K Q1T1")
-  BLOCKSIZE=("1M" "128k" "4k" "4k")
+  COLOR=($(color $NORMAL $YELLOW) $(color $NORMAL $GREEN) $(color $NORMAL $CYAN) $(color $NORMAL $CYAN))
+  BLOCKSIZE=("1M" "128K" "4K" "4K")
   IODEPTH=(8 32 32 1)
   NUMJOBS=(1 1 16 1)
   READWRITE=("" "" "rand" "rand")
-  COLOR=($(color $NORMAL $YELLOW) $(color $NORMAL $GREEN) $(color $NORMAL $CYAN) $(color $NORMAL $CYAN))
   SIZEDIVIDER=(-1 -1 16 32)
+}
+
+function loadJob() {
+  PARAMS=($(echo "$JOB" | perl -nle '/^(RND|SEQ)([0-9]+[KM])Q([0-9]+)T([0-9]+)$/; print "$1 $2 $3 $4"'))
+  if [ -z ${PARAMS[0]} ]; then
+    error 1 "Invalid job name: $(color $BOLD $WHITE)$JOB$(color $RESET)"
+  fi
+
+  case "${PARAMS[0]}" in
+    RND)
+      READWRITE=("rand")
+      READWRITELABEL="Random"
+      ;;
+    SEQ)
+      READWRITE=("")
+      READWRITELABEL="Sequential"
+      ;;
+  esac
+  BLOCKSIZE=(${PARAMS[1]})
+  IODEPTH=(${PARAMS[2]})
+  NUMJOBS=(${PARAMS[3]})
+
+  NAME=($JOB)
+  LABEL="$READWRITELABEL $BLOCKSIZE Q${IODEPTH}T${NUMJOBS}"
+  COLOR=($(color $NORMAL $MAGENTA))
 }
 
 TARGET="${TARGET:-$(pwd)}"
@@ -137,7 +172,7 @@ ISMDADM=0
 if [[ "$PARTITION" == nvme* ]]; then
   DRIVE=$(echo $PARTITION | rev | cut -c 3- | rev)
   ISNVME=1
-elif [[ "$PARTITION" == sda* ]]; then
+elif [[ "$PARTITION" == sd* ]]; then
   DRIVE=$(echo $PARTITION | rev | cut -c 2- | rev)
 elif [[ "$PARTITION" == md* ]]; then
   DRIVE=$PARTITION
@@ -159,23 +194,28 @@ else
   DRIVEMODEL="unknown"
   DRIVESIZE="unknown"
 fi
-case "$PROFILE" in
-  default)
-    loadDefaultProfile
-    ;;
-  nvme)
-    loadNVMeProfile
-    ;;
-  *)
-    if [ $ISNVME -eq 1 ]; then
-      PROFILE="auto (nvme)"
-      loadNVMeProfile
-    else
-      PROFILE="auto (default)"
+if [ ! -z $JOB ]; then
+  PROFILE="Job \"$JOB\""
+  loadJob
+else
+  case "$PROFILE" in
+    default)
       loadDefaultProfile
-    fi
-    ;;
-esac
+      ;;
+    nvme)
+      loadNVMeProfile
+      ;;
+    *)
+      if [ $ISNVME -eq 1 ]; then
+        PROFILE="auto (nvme)"
+        loadNVMeProfile
+      else
+        PROFILE="auto (default)"
+        loadDefaultProfile
+      fi
+      ;;
+  esac
+fi
 case "$DATA" in
   zero | 0 | 0x00)
     DATA="zero (0x00)"
@@ -198,7 +238,7 @@ echo -e "$(color $BOLD $WHITE)Configuration:$(color $RESET)
 - Loops: $LOOPS
 - Size: $SIZE
 
-Benchmark is $(color $BOLD $WHITE)running$(color $RESET), please wait..."
+The benchmark is $(color $BOLD $WHITE)running$(color $RESET), please wait..."
 
 fio_benchmark() {
   fio --loops="$LOOPS" --size="$1" --filename="$TARGET/.diskmark.tmp" --stonewall --ioengine=libaio --direct=1 --zero_buffers="$WRITEZERO" --output-format=json \
@@ -224,6 +264,6 @@ for ((i = 0; i < ${#NAME[@]}; i++)); do
   echo "$(${PARSE}WriteResult "${NAME[$i]}Write")"
 done
 
-echo -e "\n✅ Benchmark $(color $BOLD $GREEN)finished$(color $RESET)."
+echo -e "\n✅ The benchmark is $(color $BOLD $GREEN)finished$(color $RESET)."
 
 clean
