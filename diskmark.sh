@@ -248,7 +248,14 @@ case "$DATA" in
 esac
 SIZE="${SIZE:-1G}"
 BYTESIZE=$(toBytes $SIZE)
-LOOPS="${LOOPS:-5}"
+if [ ! -z $LOOPS ]; then
+  LIMIT="Loops: $LOOPS"
+  LIMIT_OPTION="--loops=$LOOPS"
+else
+  RUNTIME="${RUNTIME:-5s}"
+  LIMIT="Runtime: $RUNTIME"
+  LIMIT_OPTION="--time_based --runtime=$RUNTIME"
+fi
 
 echo -e "$(color $BOLD $WHITE)Configuration:$(color $RESET)
 - Target: $TARGET
@@ -258,14 +265,14 @@ echo -e "$(color $BOLD $WHITE)Configuration:$(color $RESET)
   - I/O: $IO
   - Data: $DATA
   - Size: $SIZE
-  - Loops: $LOOPS
+  - $LIMIT
 
 The benchmark is $(color $BOLD $WHITE)running$(color $RESET), please wait..."
 
 fio_benchmark() {
   fio --filename="$TARGET/.diskmark.tmp" \
     --stonewall --ioengine=libaio --direct=$DIRECT --zero_buffers=$WRITEZERO \
-    --loops="$LOOPS" --size="$1" \
+    $LIMIT_OPTION --size="$1" \
     --name="$2" --blocksize="$3" --iodepth="$4" --numjobs="$5" --readwrite="$6" \
     --output-format=json >"$TARGET/.diskmark.json"
 }
