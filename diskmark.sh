@@ -174,34 +174,51 @@ if [ ! -d "$TARGET" ]; then
   mkdir -p "$TARGET"
 fi
 DRIVELABEL="Drive"
-PARTITION=$(df "$TARGET" | grep /dev | cut -d/ -f3 | cut -d" " -f1)
-PARTITIONTYPE=$(df -T "$TARGET" | grep /dev | awk '{print $2}')
-PARTITIONSIZE=$(df -h "$TARGET" | grep /dev | awk '{print $2}')
+FILESYSTEM=$(df -T "$TARGET" | tail +2 | awk '{print $1}')
+FILESYSTEMPARTITION=$(echo $FILESYSTEM | cut -d/ -f3 | cut -d" " -f1)
+FILESYSTEMTYPE=$(df -T "$TARGET" | tail +2 | awk '{print $2}')
+FILESYSTEMSIZE=$(df -Th "$TARGET" | tail +2 | awk '{print $3}')
+ISOVERLAY=0
+ISTMPFS=0
 ISNVME=0
 ISMDADM=0
-if [[ "$PARTITION" == nvme* ]]; then
-  DRIVE=$(echo $PARTITION | rev | cut -c 3- | rev)
+if [[ "$FILESYSTEMTYPE" == overlay ]]; then
+  ISOVERLAY=1
+elif [[ "$FILESYSTEMTYPE" == tmpfs ]]; then
+  ISTMPFS=1
+elif [[ "$FILESYSTEMPARTITION" == nvme* ]]; then
+  DRIVE=$(echo $FILESYSTEMPARTITION | rev | cut -c 3- | rev)
   ISNVME=1
-elif [[ "$PARTITION" == hd* ]] || [[ "$PARTITION" == sd* ]] || [[ "$PARTITION" == vd* ]]; then
-  DRIVE=$(echo $PARTITION | rev | cut -c 2- | rev)
-elif [[ "$PARTITION" == md* ]]; then
-  DRIVE=$PARTITION
+elif [[ "$FILESYSTEMPARTITION" == hd* ]] || [[ "$FILESYSTEMPARTITION" == sd* ]] || [[ "$FILESYSTEMPARTITION" == vd* ]]; then
+  DRIVE=$(echo $FILESYSTEMPARTITION | rev | cut -c 2- | rev)
+elif [[ "$FILESYSTEMPARTITION" == md* ]]; then
+  DRIVE=$FILESYSTEMPARTITION
   ISMDADM=1
 else
   DRIVE=""
 fi
-if [ $ISMDADM -eq 1 ]; then
+if [ $ISOVERLAY -eq 1 ]; then
+  DRIVENAME="Overlay"
+  DRIVE="overlay"
+  DRIVESIZE=$FILESYSTEMSIZE
+elif [ $ISTMPFS -eq 1 ]; then
+  DRIVENAME="RAM"
+  DRIVE="tmpfs"
+  DRIVESIZE=$(free -h --si | grep Mem: | awk '{print $2}')
+elif [ $ISMDADM -eq 1 ]; then
   DRIVELABEL="Drives"
-  DRIVEMODEL="mdadm $(cat /sys/block/$DRIVE/md/level)"
+  DRIVENAME="mdadm $(cat /sys/block/$DRIVE/md/level)"
   DRIVESIZE=$(fromBytes $(($(cat /sys/block/$DRIVE/size) * 512)))
   DISKS=$(ls /sys/block/$DRIVE/slaves/)
   DRIVEDETAILS="using $(echo $DISKS | wc -w) disks ($(echo $DISKS | sed 's/ /, /g'))"
-elif [ -f /sys/block/$DRIVE/device/model ]; then
-  DRIVEMODEL=$(cat /sys/block/$DRIVE/device/model | sed 's/ *$//g')
+elif [ -d /sys/block/$DRIVE/device ]; then
+  DEVICE=($(cat /sys/block/$DRIVE/device/vendor | sed 's/ *$//g'))
+  DEVICE+=($(cat /sys/block/$DRIVE/device/model | sed 's/ *$//g'))
+  DRIVENAME=${DEVICE[@]}
   DRIVESIZE=$(fromBytes $(($(cat /sys/block/$DRIVE/size) * 512)))
 else
   DRIVE="unknown"
-  DRIVEMODEL="unknown"
+  DRIVENAME="unknown"
   DRIVESIZE="unknown"
 fi
 if [ ! -z $JOB ]; then
@@ -259,8 +276,8 @@ fi
 
 echo -e "$(color $BOLD $WHITE)Configuration:$(color $RESET)
 - Target: $TARGET
-  - $DRIVELABEL: $DRIVEMODEL ($DRIVE, $DRIVESIZE) $DRIVEDETAILS
-  - Partition: $PARTITIONTYPE ($PARTITION, $PARTITIONSIZE)
+  - $DRIVELABEL: $DRIVENAME ($DRIVE, $DRIVESIZE) $DRIVEDETAILS
+  - Filesystem: $FILESYSTEMTYPE ($FILESYSTEMPARTITION, $FILESYSTEMSIZE)
 - Profile: $PROFILE
   - I/O: $IO
   - Data: $DATA
