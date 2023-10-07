@@ -35,6 +35,7 @@ Find below a table listing all the different parameters you can use with the con
 | `IO`                 | Environment | direct  | The drive access mode:<br>- `direct` for synchronous I/O,<br>- `buffered` for asynchronous I/O. |
 | `DATA`               | Environment | random  | The test data:<br>- `random` to use random data,<br>- `0x00` to fill with 0 (zero) values. |
 | `SIZE`               | Environment | 1G      | The size of the test file in bytes. |
+| `WARMUP`             | Environment | 0       | When set to `1`, use a warmup phase, thus preparing the test file with `fallocate`, using either random data or zero values as set by `DATA`. |
 | `RUNTIME`            | Environment | 5s      | The test duration for each job. |
 | `LOOPS`              | Environment |         | The number of test loops performed on the test file.<br>This parameter overrides the `RUNTIME` parameter. |
 | `/disk`              | Volume      |         | The target path to benchmark. |
