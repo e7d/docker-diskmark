@@ -174,8 +174,7 @@ if [ ! -d "$TARGET" ]; then
   mkdir -p "$TARGET"
 fi
 DRIVELABEL="Drive"
-FILESYSTEM=$(df -T "$TARGET" | tail +2 | awk '{print $1}')
-FILESYSTEMPARTITION=$(echo $FILESYSTEM | cut -d/ -f3 | cut -d" " -f1)
+FILESYSTEMPARTITION=$(lsblk -P | grep "$TARGET" | awk '{print $1}' | cut -d"=" -f2 | cut -d"\"" -f2)
 FILESYSTEMTYPE=$(df -T "$TARGET" | tail +2 | awk '{print $2}')
 FILESYSTEMSIZE=$(df -Th "$TARGET" | tail +2 | awk '{print $3}')
 ISOVERLAY=0

@@ -6,6 +6,7 @@ Inspired by the [crystal-disk-mark-fio-bench.sh](https://gist.github.com/0x0I/35
 ## Basic Usage
 
 ```
+docker pull e7db/diskmark
 docker run -it --rm e7db/diskmark
 ```
 
