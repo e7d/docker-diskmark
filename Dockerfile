@@ -1,7 +1,8 @@
 FROM ubuntu AS deps
 RUN export DEBIAN_FRONTEND=noninteractive \
     && apt-get update \
-    && apt install -y fio \
+    && apt-get upgrade -y \
+    && apt-get install -y fio \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
