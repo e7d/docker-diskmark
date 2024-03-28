@@ -193,7 +193,7 @@ elif [[ "$FILESYSTEMPARTITION" == nvme* ]]; then
   DRIVE=$(echo $FILESYSTEMPARTITION | rev | cut -c 3- | rev)
   ISNVME=1
 elif [[ "$FILESYSTEMPARTITION" == hd* ]] || [[ "$FILESYSTEMPARTITION" == sd* ]] || [[ "$FILESYSTEMPARTITION" == vd* ]]; then
-  DRIVE=$(echo $FILESYSTEMPARTITION | rev | cut -c 2- | rev)
+  DRIVE=$(echo $FILESYSTEMPARTITION | sed 's/[0-9]*$//')
 elif [[ "$FILESYSTEMPARTITION" == md* ]]; then
   DRIVE=$FILESYSTEMPARTITION
   ISMDADM=1
