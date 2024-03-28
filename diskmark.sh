@@ -280,6 +280,7 @@ case "$DATA" in
 esac
 SIZE="${SIZE:-1G}"
 BYTESIZE=$(toBytes $SIZE)
+WARMUP="${WARMUP:-0}"
 if [ ! -z $LOOPS ]; then
   LIMIT="Loops: $LOOPS"
   LIMIT_OPTION="--loops=$LOOPS"
@@ -297,6 +298,7 @@ echo -e "$(color $BOLD $WHITE)Configuration:$(color $RESET)
   - I/O: $IO
   - Data: $DATA
   - Size: $SIZE
+  - Warmup: $WARMUP
   - $LIMIT
 
 The benchmark is $(color $BOLD $WHITE)running$(color $RESET), please wait..."
