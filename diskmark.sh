@@ -193,7 +193,7 @@ elif [[ "$FILESYSTEMPARTITION" == nvme* ]]; then
   DRIVE=$(echo $FILESYSTEMPARTITION | rev | cut -c 3- | rev)
   ISNVME=1
 elif [[ "$FILESYSTEMPARTITION" == hd* ]] || [[ "$FILESYSTEMPARTITION" == sd* ]] || [[ "$FILESYSTEMPARTITION" == vd* ]]; then
-  DRIVE=$(echo $FILESYSTEMPARTITION | rev | cut -c 2- | rev)
+  DRIVE=$(echo $FILESYSTEMPARTITION | sed 's/[0-9]*$//')
 elif [[ "$FILESYSTEMPARTITION" == md* ]]; then
   DRIVE=$FILESYSTEMPARTITION
   ISMDADM=1
@@ -280,6 +280,7 @@ case "$DATA" in
 esac
 SIZE="${SIZE:-1G}"
 BYTESIZE=$(toBytes $SIZE)
+WARMUP="${WARMUP:-0}"
 if [ ! -z $LOOPS ]; then
   LIMIT="Loops: $LOOPS"
   LIMIT_OPTION="--loops=$LOOPS"
@@ -297,6 +298,7 @@ echo -e "$(color $BOLD $WHITE)Configuration:$(color $RESET)
   - I/O: $IO
   - Data: $DATA
   - Size: $SIZE
+  - Warmup: $WARMUP
   - $LIMIT
 
 The benchmark is $(color $BOLD $WHITE)running$(color $RESET), please wait..."

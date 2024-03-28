@@ -15,6 +15,6 @@ ENV PROFILE "auto"
 ENV IO "direct"
 ENV DATA "random"
 ENV SIZE 1G
-ENV WARMUP 0
+ENV WARMUP 1
 ENV RUNTIME 5s
 ENTRYPOINT [ "diskmark" ]
