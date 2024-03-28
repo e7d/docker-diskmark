@@ -34,15 +34,19 @@ jobs:
           cache-to: type=registry,ref=${{ vars.DOCKERHUB_IMAGE }}:buildcache,mode=max
           push: true
           tags: ${{ vars.DOCKERHUB_IMAGE }}:${{ github.sha }}
-      - name: Push "tag"
+      - name: Push semver tags
         if: github.ref_type == 'tag'
         run: |
           GITHUB_REF=${{ github.ref }}
-          TAG=${GITHUB_REF#refs/tags/}
-          docker buildx imagetools create \
-            --tag ${{ vars.DOCKERHUB_IMAGE }}:${TAG} \
-            ${{ vars.DOCKERHUB_IMAGE }}:${{ github.sha }}
-      - name: Push "latest"
+          GITHUB_TAG=${GITHUB_REF#refs/tags/}
+          TAGS=""
+          if [ "${GITHUB_TAG}" != *-* ]; then # if not a pre-release
+            TAGS+=" --tag ${{ vars.DOCKERHUB_IMAGE }}:${GITHUB_TAG%%.*}" # major version tag (e.g. 1)
+            TAGS+=" --tag ${{ vars.DOCKERHUB_IMAGE }}:${GITHUB_TAG%.*}" # major.minor version tag (e.g. 1.2)
+          fi
+          TAGS+=" --tag ${{ vars.DOCKERHUB_IMAGE }}:${GITHUB_TAG}" # full version tag (e.g. 1.2.3-rc.4)
+          docker buildx imagetools create ${TAGS} ${{ vars.DOCKERHUB_IMAGE }}:${{ github.sha }}
+      - name: Push "latest" tag
         if: github.ref == 'refs/heads/main'
         run: |
           docker buildx imagetools create \
