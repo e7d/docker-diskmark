@@ -73,8 +73,8 @@ jobs:
           write-comment: true
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Update repo description
-        if: ${{ github.ref == 'refs/heads/main' }}
-        uses: peter-evans/dockerhub-description@v3
+        if: github.ref == 'refs/heads/main'
+        uses: peter-evans/dockerhub-description@v4
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
