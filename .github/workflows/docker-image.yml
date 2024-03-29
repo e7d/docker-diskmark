@@ -10,8 +10,15 @@ on:
     branches:
       - "main"
 
+permissions:
+  contents: read
+  pull-requests: write
+
+env:
+  PLATFORMS: linux/amd64,linux/arm/v7,linux/arm64/v8,linux/ppc64le,linux/s390x
+
 jobs:
-  docker:
+  build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -25,35 +32,48 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - name: Build and export
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ${{ vars.DOCKERHUB_IMAGE }}
+          labels: |
+            org.opencontainers.image.title=docker-diskmark
+            org.opencontainers.image.description=A disk benchmarking tool for Docker
+            org.opencontainers.image.revision=${{ env.SHA }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=edge,branch=$repo.default_branch
+            type=sha,prefix=,suffix=,format=short
+      - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
-          platforms: linux/amd64,linux/arm/v7,linux/arm64/v8,linux/ppc64le,linux/s390x
-          cache-from: type=registry,ref=${{ vars.DOCKERHUB_IMAGE }}:buildcache
-          cache-to: type=registry,ref=${{ vars.DOCKERHUB_IMAGE }}:buildcache,mode=max
+          platforms: ${{ env.PLATFORMS }}
+          cache-from: type=gha
+          cache-to: type=gha
           push: true
-          tags: ${{ vars.DOCKERHUB_IMAGE }}:${{ github.sha }}
-      - name: Push semver tags
-        if: github.ref_type == 'tag'
-        run: |
-          GITHUB_REF=${{ github.ref }}
-          GITHUB_TAG=${GITHUB_REF#refs/tags/}
-          TAGS=""
-          if [ "${GITHUB_TAG}" != *-* ]; then # if not a pre-release
-            TAGS+=" --tag ${{ vars.DOCKERHUB_IMAGE }}:${GITHUB_TAG%%.*}" # major version tag (e.g. 1)
-            TAGS+=" --tag ${{ vars.DOCKERHUB_IMAGE }}:${GITHUB_TAG%.*}" # major.minor version tag (e.g. 1.2)
-          fi
-          TAGS+=" --tag ${{ vars.DOCKERHUB_IMAGE }}:${GITHUB_TAG}" # full version tag (e.g. 1.2.3-rc.4)
-          docker buildx imagetools create ${TAGS} ${{ vars.DOCKERHUB_IMAGE }}:${{ github.sha }}
-      - name: Push "latest" tag
-        if: github.ref == 'refs/heads/main'
-        run: |
-          docker buildx imagetools create \
-            --tag ${{ vars.DOCKERHUB_IMAGE }}:latest \
-            ${{ vars.DOCKERHUB_IMAGE }}:${{ github.sha }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+      - name: Docker Scout
+        id: docker-scout
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: docker/scout-action@v1
+        with:
+          command: cves,recommendations,compare
+          image: ${{ steps.meta.outputs.tags }}
+          to: ${{ vars.DOCKERHUB_IMAGE }}:latest
+          ignore-base: true
+          ignore-unchanged: true
+          only-fixed: true
+          # only-severities: critical,high
+          write-comment: true
+          github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Update repo description
-        if: github.ref == 'refs/heads/main'
+        if: ${{ github.ref == 'refs/heads/main' }}
         uses: peter-evans/dockerhub-description@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
