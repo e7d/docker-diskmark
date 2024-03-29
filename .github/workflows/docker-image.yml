@@ -12,6 +12,7 @@ on:
 
 permissions:
   contents: read
+  packages: write
   pull-requests: write
 
 env:
@@ -32,12 +33,19 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Extract Docker metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: |
             ${{ vars.DOCKERHUB_IMAGE }}
+            ${{ vars.GHCR_IMAGE }}
           labels: |
             org.opencontainers.image.title=docker-diskmark
             org.opencontainers.image.description=A disk benchmarking tool for Docker
@@ -64,7 +72,7 @@ jobs:
         uses: docker/scout-action@v1
         with:
           command: cves,recommendations,compare
-          image: ${{ steps.meta.outputs.tags }}
+          image: ${{ vars.DOCKERHUB_IMAGE }}:${{ env.SHA }}
           to: ${{ vars.DOCKERHUB_IMAGE }}:latest
           ignore-base: true
           ignore-unchanged: true
