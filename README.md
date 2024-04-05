@@ -1,7 +1,6 @@
 # docker-diskmark [![docker-image](https://github.com/e7d/docker-diskmark/actions/workflows/docker-image.yml/badge.svg)](https://github.com/e7d/docker-diskmark/actions/workflows/docker-image.yml)
 
 A [fio](https://github.com/axboe/fio)-based disk benchmark [docker container](https://hub.docker.com/r/e7db/diskmark), similar to what [CrystalDiskMark](https://crystalmark.info/en/software/crystaldiskmark/) does.  
-Inspired by the [crystal-disk-mark-fio-bench.sh](https://gist.github.com/0x0I/35a3aa0f810acfddeddb7ff59c37f484) GitHub Gist by [0x0I](https://gist.github.com/0x0I).  
 
 ## Basic Usage
 
