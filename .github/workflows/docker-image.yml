@@ -44,8 +44,8 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: |
-            ${{ vars.DOCKERHUB_IMAGE }}
-            ${{ vars.GHCR_IMAGE }}
+            name=${{ vars.GHCR_IMAGE }}
+            name=${{ vars.DOCKERHUB_IMAGE }},enable=${{ github.event_name != 'pull_request' }}
           labels: |
             org.opencontainers.image.title=docker-diskmark
             org.opencontainers.image.description=A disk benchmarking tool for Docker
@@ -55,7 +55,7 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=semver,pattern={{major}}
             type=edge,branch=$repo.default_branch
-            type=sha,prefix=,suffix=,format=short
+            type=ref,event=pr
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
@@ -72,8 +72,8 @@ jobs:
         uses: docker/scout-action@v1
         with:
           command: cves,recommendations,compare
-          image: ${{ vars.DOCKERHUB_IMAGE }}:${{ env.SHA }}
-          to: ${{ vars.DOCKERHUB_IMAGE }}:latest
+          image: ${{ steps.meta.outputs.tags }}
+          to: ${{ vars.GHCR_IMAGE }}:latest
           ignore-base: true
           ignore-unchanged: true
           only-fixed: true
@@ -81,7 +81,7 @@ jobs:
           write-comment: true
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Update repo description
-        if: github.ref == 'refs/heads/main'
+        if: ${{ github.ref == 'refs/heads/main' }}
         uses: peter-evans/dockerhub-description@v4
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
