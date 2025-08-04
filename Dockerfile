@@ -1,4 +1,4 @@
-FROM ubuntu AS deps
+FROM ubuntu:24.10 AS deps
 RUN export DEBIAN_FRONTEND=noninteractive \
     && apt-get update \
     && apt-get upgrade -y \
